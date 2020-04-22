@@ -5,3 +5,9 @@ transfer using Kafka.
 - Docker (https://www.docker.com/products/docker-desktop)
 - Twitter API (https://developer.twitter.com)
 - Filtered Stream API (https://developer.twitter.com/en/account/labs)
+- Python 3.8
+  #+BEGIN_SRC bash
+  # Used to follow the Tweet stream (fowlhose.py)
+  pip install 'aiohttp[speedups]'
+  pip install confluent-kafka
+  #+END_SRC
