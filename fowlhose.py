@@ -20,14 +20,49 @@ import asyncio
 from base64 import b64encode
 import logging
 import os
+import sys
 from urllib.parse import quote as urlquote
 
+__version__ = "0.1"
 
-logger = logging.getLogger("fowlhose")
+class ColorizedFormatter(logging.Formatter):
+    COLOR_RESET = "\u001b[0m"
+
+    @staticmethod
+    def get_level_color(levelno):
+        if os.getenv("DISABLE_COLOR", False):
+            return COLOR_RESET
+        elif levelno <= 10:
+            # DEBUG
+            return "\u001b[38;5;14m"
+        elif levelno <= 20:
+            # INFO
+            return "\u001b[38;5;27m"
+        elif levelno <= 30:
+            # WARNING
+            return "\u001b[38;5;214m"
+        elif levelno <= 40:
+            # ERROR
+            return"\u001b[38;5;9m"
+        else:
+            # CRITICAL
+            return "\u001b[38;5;124m"
+
+    def format(self, record):
+        record.levelname = "{}{:8}{}".format(
+            self.get_level_color(record.levelno),
+            record.levelname,
+            self.COLOR_RESET)
+
+        return super().format(record)
+
 LOG_FORMAT = os.getenv(
     "FOWLBIRD_LOG_FORMAT",
-    "%(levelname)-8s | %(asctime)s | %(name)s[%(process)s] | %(msg)s")
-logging.basicConfig(format=LOG_FORMAT)
+    "%(levelname)s | %(asctime)s | %(name)s[%(process)s] | %(msg)s")
+handler = logging.StreamHandler(sys.stderr)
+handler.setFormatter(ColorizedFormatter(LOG_FORMAT))
+logger = logging.getLogger("fowlhose")
+logger.addHandler(handler)
 
 try:
     import aiohttp
@@ -58,7 +93,7 @@ async def _oauth_get_bearer_token(
         secret_token: Your app's secret token from developer.twitter.com
 
     Return:
-
+        bearer token
     """
     AUTH_URL = "{}/oauth2/token".format(BASE_URL)
     # To generate the Authorization header:
@@ -160,27 +195,42 @@ async def stream_tweets(access_token: str, secret_token: str):
 
 
 async def _main(loop):
+
     TWITTER_ACCESS_TOKEN = os.getenv("TWITTER_ACCESS_TOKEN")
     TWITTER_ACCESS_SECRET = os.getenv("TWITTER_ACCESS_SECRET")
 
     logger.setLevel(logging.DEBUG)
 
-    print("Fowl Hose - Filter the Twitter Stream by keywords")
+    sys.stderr.write(
+        "      \u001b[38;5;8m- (\u001b[0m@$*&\u001b[38;5;8m)\u001b[0m\n")
+    sys.stderr.write(
+        "\u001b[38;5;33m _   \u001b[38;5;8m/\u001b[0m\n")
+    sys.stderr.write(
+        "\u001b[38;5;33m(\u001b[38;5;12m@\u001b[38;5;33m)"
+        "\u001b[38;5;3m<\u001b[0m     Fowlhose - Stream tweets based on "
+        "filter rules\n")
+    sys.stderr.write(
+        "\u001b[38;5;33m/-\\\u001b[0m      Version: {}\n\n".format(
+            __version__))
+
+    logger.debug("FOWLBIRD_LOG_FORMAT: {}".format(LOG_FORMAT))
     logger.debug("TWITTER_ACCESS_TOKEN: xxxxx{}".format(
         TWITTER_ACCESS_TOKEN[-7:]))
     logger.debug("TWITTER_ACCESS_SECRET: xxxxx{}".format(
         TWITTER_ACCESS_SECRET[-7:]))
-    logger.debug("FOWLBIRD_LOG_FORMAT: {}".format(LOG_FORMAT))
 
     async for tweet in stream_tweets(
             TWITTER_ACCESS_TOKEN, TWITTER_ACCESS_SECRET):
-        print(tweet)
+        sys.stdout.write("{}\n".format(tweet.strip()))
 
     # client = await create_client(TWITTER_ACCESS_TOKEN, TWITTER_ACCESS_SECRET)
-    # await set_filter_rule(client, "covid-19", "covid-19")
+    #
     # await delete_all_filter_rules(client)
+    # await set_filter_rule(client, "covid-19", "covid-19")
     # rules = await get_filter_rules(client)
     # logger.debug("Rules: {}".format(rules))
+    #
+    # await client.close()
 
 if __name__ == "__main__":
     loop = asyncio.get_event_loop()
