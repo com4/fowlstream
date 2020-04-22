@@ -1,0 +1,7 @@
+* Kafka Postgres Sink
+This repository is an example on how to set up Postgres-to-Postgres data
+transfer using Kafka.
+** Prerequisites
+- Docker (https://www.docker.com/products/docker-desktop)
+- Twitter API (https://developer.twitter.com)
+- Filtered Stream API (https://developer.twitter.com/en/account/labs)
