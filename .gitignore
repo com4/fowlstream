@@ -9,3 +9,6 @@ __pycache__/
 # Environemnts
 .envrc
 .venv
+
+# VS Code
+.vccode
