@@ -201,6 +201,7 @@ async def _main(loop):
 
     logger.setLevel(logging.DEBUG)
 
+    sys.stderr.write("\n")
     sys.stderr.write(
         "      \u001b[38;5;8m- (\u001b[0m@$*&\u001b[38;5;8m)\u001b[0m\n")
     sys.stderr.write(
