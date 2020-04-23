@@ -12,7 +12,7 @@
    - Enable Filtered Stream API: https://developer.twitter.com/en/account/labs
 
 * Environment Variables
-  - ``FOWLBIRD_LOG_FORMAT`` - If you want a different log format
+  - ``FOWLHOSE_LOG_FORMAT`` - If you want a different log format
   - ``TWITTER_ACCESS_TOKEN`` - API Key from app page
   - ``TWITTER_SECRET_KEY`` - API Secret Key from app page
 
@@ -25,14 +25,16 @@
 import asyncio
 from base64 import b64encode
 from collections import OrderedDict
+import html
 import json
 import logging
 import os
 import sys
+import textwrap
 from typing import Any, Dict, IO, List, Optional
-from urllib.parse import quote as urlquote
+from urllib.parse import quote as urlquote, urlencode
 
-__description__ = "Filter and follow the Twitter Stream"
+__description__ = "Filter and follow the Twitterverse"
 __version__ = "0.1"
 
 class ColorizedFormatter(logging.Formatter):
@@ -67,7 +69,7 @@ class ColorizedFormatter(logging.Formatter):
         return super().format(record)
 
 LOG_FORMAT = os.getenv(
-    "FOWLBIRD_LOG_FORMAT",
+    "FOWLHOSE_LOG_FORMAT",
     "%(levelname)s | %(asctime)s | %(name)s[%(process)s] | %(msg)s")
 handler = logging.StreamHandler(sys.stderr)
 handler.setFormatter(ColorizedFormatter(LOG_FORMAT))
@@ -100,12 +102,12 @@ def print_ascii_table(
 
     Args:
         data: Each sub-list in ``data`` will be a row in the table. Each
-            element in the sub-list will be a column.
-        header: Each element in the list will be used as a header.
-        stream: The stream to write the table to.
+            element in the sub-list will be a column
+        header: Each element in the list will be used as a header
+        stream: The stream to write the table to
     Raises:
         ValueError: header length and column count mismatch or column count
-            differences.
+            differences
     """
     num_columns = None
     col_max_lengths = {}
@@ -183,9 +185,9 @@ async def _oauth_get_bearer_token(
        doing before authentication.
 
     Args:
-        client: HTTP client to use for the request.
-        access_token: Your app's access token from developer.twitter.com
-        secret_token: Your app's secret token from developer.twitter.com
+        client: HTTP client to use for the request
+        access_token: Your app's access token
+        secret_token: Your app's secret token
 
     Return:
         bearer token
@@ -220,24 +222,75 @@ async def _oauth_get_bearer_token(
     return bearer_token
 
 
+def _log_http_errors(response: aiohttp.ClientResponse):
+    if response.status == 429:
+        logger.error("Client is being rate-limited")
+
+
+async def _http_get(
+        client: aiohttp.ClientSession,
+        url: str) -> Dict:
+    """Wrapper for client.get with error logging."""
+    async with client.get(url) as response:
+        logger.debug("GET {} -> {} {}".format(
+            url, response.status, response.reason))
+        _log_http_errors(response)
+
+        data = await response.json()
+        logger.debug("{}".format(data))
+    return data
+
+
+async def _http_post(
+        client: aiohttp.ClientSession,
+        url: str,
+        json=None) -> dict:
+    """Wrapper for client.post with error logging."""
+    async with client.post(url, json=json) as response:
+        logger.debug("POST {} -> {} {}".format(
+            RULES_URL, response.status, response.reason))
+        _log_http_errors(response)
+        data = await response.json()
+        logger.debug("{}".format(data))
+    return data
+
+
+async def _http_stream_content(
+        client: aiohttp.ClientSession,
+        url: str):
+    """Wrapper for client.get subtable for streaming the response body."""
+    # Disable the timeout for streaming
+    timeout = aiohttp.ClientTimeout(total=None)
+    async with client.get(url, timeout=timeout) as response:
+        logger.debug("GET {} -> {} {}".format(
+            url, response.status, response.reason))
+        _log_http_errors(response)
+
+        if response.status < 300:
+            async for line in response.content:
+                yield line
+
+
+async def get_user(client: aiohttp.ClientSession, user_id: int) -> Dict:
+    url = "{}/1.1/users/lookup.json?{}".format(
+        BASE_URL, urlencode({"user_id": user_id}))
+
+    data = await _http_get(client, url)
+    return data
+
+
 async def list_filter_rules(client: aiohttp.ClientSession) -> List[Dict[str, str]]:
     """Get all filter rules for this account.
 
     Args:
-        client: HTTP client to use for the request.
+        client: HTTP client to use for the request
 
     Return:
         A list of rules
         [{'id': '<rule_id>', 'value': '<rule>', 'name': '<name>'}, ]
     """
-    data = None  # Response from API
     ret = []  # Return value
-
-    async with client.get(RULES_URL) as response:
-        logger.debug("GET {} -> {} {}".format(
-            RULES_URL, response.status, response.reason))
-        data = await response.json()
-        logger.debug("{}".format(data))
+    data = await _http_get(client, RULES_URL)
 
     if data and "data" in data:
         for rule in data["data"]:
@@ -261,7 +314,7 @@ async def add_filter_rule(
        https://developer.twitter.com/en/docs/labs/filtered-stream/guides/search-queries
 
     Args:
-        client: HTTP client to use for the request.
+        client: HTTP client to use for the request
         name: the name of the rule
         rule: the filter to create
 
@@ -274,11 +327,7 @@ async def add_filter_rule(
             {"value": rule, "tag": name},
         ]
     }
-    async with client.post(RULES_URL, json=payload) as response:
-        logger.debug("POST {} -> {} {}".format(
-            RULES_URL, response.status, response.reason))
-        data = await response.json()
-        logger.debug(data)
+    data = await _http_post(client, RULES_URL, json=payload)
     return data["meta"]["summary"]["created"] == 1
 
 
@@ -286,7 +335,7 @@ async def reset_filter_rules(client: aiohttp.ClientSession) -> bool:
     """Remove all filters.
 
     Args:
-        client: HTTP client to use for the request.
+        client: HTTP client to use for the request
 
     Returns:
         ``True`` if _all_ rules were deleted. ``False`` if one or more rules
@@ -305,7 +354,7 @@ async def delete_filter_rules(client: aiohttp.ClientSession, ids: List[int]) -> 
     """Remove a list of ids from the ruleset.
 
     Args:
-        client: HTTP client to use for the request.
+        client: HTTP client to use for the request
         ids: A list of ids to remove
     Returns:
         ``True`` if _all_ rules were deleted. ``False`` if one or more rules
@@ -316,12 +365,7 @@ async def delete_filter_rules(client: aiohttp.ClientSession, ids: List[int]) -> 
             "ids": ids,
         }
     }
-    async with client.post(RULES_URL, json=payload) as response:
-        logger.debug("POST {} -> {} {}".format(
-            RULES_URL, response.status, response.reason))
-        data = await response.json()
-        logger.debug(data)
-
+    data = await _http_post(client, RULES_URL, json=payload)
     return data["meta"]["summary"]["not_deleted"] == 0\
 
 
@@ -329,7 +373,7 @@ async def delete_filter_rule(client: aiohttp.ClientSession, id_: int) -> bool:
     """Remove the provided id from the ruleset
 
     Args:
-        client: HTTP client to use for the request.
+        client: HTTP client to use for the request
         id_: The rule id to remove
     Returns:
         ``True`` if _all_ rules were deleted. ``False`` if one or more rules
@@ -343,8 +387,8 @@ async def create_client(access_token: str, secret_token: str) -> aiohttp.ClientS
     """Get an authenticated http client ready to make Twitter API requests.
 
     Args:
-        access_token: Your app's access token from developer.twitter.com
-        secret_token: Your app's secret token from developer.twitter.com
+        access_token: Your app's access token
+        secret_token: Your app's secret token
     """
     client = aiohttp.ClientSession()
     bearer_token = await _oauth_get_bearer_token(
@@ -357,45 +401,47 @@ async def create_client(access_token: str, secret_token: str) -> aiohttp.ClientS
     return client
 
 
-async def connect_stream(client: aiohttp.ClientSession):
+async def connect_stream(client: aiohttp.ClientSession) -> str:
+    """Connect to Twitter's filter stream. Don't cross anything.
 
-    # Disable the timeout for streaming
-    timeout = aiohttp.ClientTimeout(total=None)
-    async with client.get(STREAM_URL, timeout=timeout) as response:
-        logger.debug("GET {} -> {} {}".format(
-            STREAM_URL, response.status, response.reason))
+    .. note::
 
-        if response.status == 200:
-            async for tweet in response.content:
-                tweet = tweet.decode("utf-8").strip()
-                if not tweet: continue
-                yield tweet
+       This function gives you the unaltered UTF-8 encoded response including
+       the HTML entities Twitter leaves in. Consider using something like
+       :func:`html.unescape` to convert those pesky &amp; in the `text` field
+       back to & (after deserializing the JSON on your own, of course.)
+
+    Args:
+        client: HTTP client to use for the request
+
+    Yields:
+        JSON string from Twitter
+    """
+    async for tweet in _http_stream_content(client, STREAM_URL):
+        tweet = tweet.decode("utf-8").strip()
+        if not tweet: continue
+        yield tweet
 
 
 async def stream_tweets(access_token: str, secret_token: str):
     """Utility method that performs the setup to stream filtered tweets.
 
     Args:
-        access_token: Your app's access token from developer.twitter.com
-        secret_token: Your app's secret token from developer.twitter.com
+        access_token: Your app's access token
+        secret_token: Your app's secret token
     """
     client = await create_client(access_token, secret_token)
     try:
         async for tweet in connect_stream(client):
             yield tweet
     except:
-        # TODO: Signal cleanup -- CTRL+c leaves the client open.
-        logger.info("Closing client...")
         await client.close()
-
 
 if __name__ == "__main__":
     import argparse
 
     TWITTER_ACCESS_TOKEN = os.getenv("TWITTER_ACCESS_TOKEN")
     TWITTER_ACCESS_SECRET = os.getenv("TWITTER_ACCESS_SECRET")
-
-    logger.setLevel(logging.DEBUG)
 
     async def cmd_list_rules(args: argparse.Namespace):
         try:
@@ -461,12 +507,48 @@ if __name__ == "__main__":
         else:
             logger.error("Unable to remove rule {}".format(args.id))
 
+
     async def cmd_stream(args: argparse.Namespace):
         async for tweet in stream_tweets(
                 TWITTER_ACCESS_TOKEN, TWITTER_ACCESS_SECRET):
             sys.stdout.write("{}\n".format(tweet))
 
+
+    async def cmd_watch(args: argparse.Namespace):
+        logger.setLevel(logging.INFO)
+        try:
+            client = await create_client(
+                TWITTER_ACCESS_TOKEN, TWITTER_ACCESS_SECRET)
+            async for tweet in connect_stream(client):
+                data = json.loads(tweet)
+
+                timestamp = data["data"]["created_at"]
+                msg_parts = textwrap.wrap(html.unescape(data["data"]["text"]))
+                author_id = data["data"]["author_id"]
+                matching_rules = ", ".join(
+                    r["tag"] for r in data["matching_rules"])
+
+                user_info = await get_user(client, author_id)
+                username = "@{}".format(user_info[0]["screen_name"])
+                name = user_info[0]["name"]
+                follower_count = user_info[0]["followers_count"]
+
+                sys.stdout.write(
+                    "\u001b[38;5;220m{}\u001b[0m (rules: "
+                    "\u001b[38;5;109m{}\u001b[0m)\n".format(
+                        username, matching_rules))
+                for line in msg_parts:
+                    sys.stdout.write("  {}\n".format((line)))
+                sys.stdout.write("\n")
+
+        finally:
+            await client.close()
+
+
     parser = argparse.ArgumentParser(description=__description__)
+    parser.add_argument(
+        "-v", action="append_const", const="v", help="verbosity level")
+
     subparser = parser.add_subparsers(dest="command")
 
     list_rules_parser = subparser.add_parser(
@@ -497,25 +579,43 @@ if __name__ == "__main__":
         "stream", help="follow the twitterverse with your filter rules")
     stream_parser.set_defaults(func=cmd_stream)
 
+    watch_parser = subparser.add_parser(
+        "watch", help="human readable stream")
+    watch_parser.set_defaults(func=cmd_watch)
+
     args = parser.parse_args()
 
-    sys.stderr.write("\n")
-    sys.stderr.write(
-        "      \u001b[38;5;8m- (\u001b[0m@$*&\u001b[38;5;8m)\u001b[0m\n")
-    sys.stderr.write(
-        "\u001b[38;5;33m _   \u001b[38;5;8m/\u001b[0m\n")
-    sys.stderr.write(
-        "\u001b[38;5;33m(\u001b[38;5;12m@\u001b[38;5;33m)"
-        "\u001b[38;5;3m<\u001b[0m     Fowlhose - {}\n".format(__description__))
-    sys.stderr.write(
-        "\u001b[38;5;33m/-\\\u001b[0m      Version: {}\n\n".format(
-            __version__))
+    # Define verbosity level
+    log_level = 40  # Error
+    if args.v:
+        log_level = log_level - (len(args.v) * 10)
+        if log_level < 0:
+            log_level = 0
+    logger.setLevel(log_level)
 
-    logger.debug("TWITTER_ACCESS_TOKEN: xxxxx{}".format(
-        TWITTER_ACCESS_TOKEN[-7:]))
-    logger.debug("TWITTER_ACCESS_SECRET: xxxxx{}".format(
-        TWITTER_ACCESS_SECRET[-7:]))
+    if args.command:
+        sys.stderr.write("\n")
+        sys.stderr.write(
+            "      \u001b[38;5;8m- (\u001b[0m@$*&\u001b[38;5;8m)\u001b[0m\n")
+        sys.stderr.write(
+            "\u001b[38;5;33m _   \u001b[38;5;8m/\u001b[0m\n")
+        sys.stderr.write(
+            "\u001b[38;5;33m(\u001b[38;5;12m@\u001b[38;5;33m)"
+            "\u001b[38;5;3m<\u001b[0m     Fowlhose - {}\n".format(
+                __description__))
+        sys.stderr.write(
+            "\u001b[38;5;33m/-\\\u001b[0m      Version: {}\n\n".format(
+                __version__))
 
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(args.func(args))
-    loop.close()
+        logger.debug("TWITTER_ACCESS_TOKEN: xxxxx{}".format(
+            TWITTER_ACCESS_TOKEN[-7:]))
+        logger.debug("TWITTER_ACCESS_SECRET: xxxxx{}".format(
+            TWITTER_ACCESS_SECRET[-7:]))
+
+        loop = asyncio.get_event_loop()
+        try:
+            loop.run_until_complete(args.func(args))
+        except:
+            loop.close()
+    else:
+        parser.print_help()
