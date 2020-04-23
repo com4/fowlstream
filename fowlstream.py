@@ -417,7 +417,16 @@ async def connect_stream(client: aiohttp.ClientSession) -> str:
     Yields:
         JSON string from Twitter
     """
-    async for tweet in _http_stream_content(client, STREAM_URL):
+    expansion_list = [
+        "attachments.poll_ids", "attachments.media_keys", "author_id",
+        "entities.mentions.username", "geo.place_id", "in_reply_to_user_id",
+        "referenced_tweets.id", "referenced_tweets.id.author_id",]
+    params = {
+        "expansions": ",".join(expansion_list),
+        "format": "detailed",
+    }
+    url = "{}?{}".format(STREAM_URL, urlencode(params))
+    async for tweet in _http_stream_content(client, url):
         tweet = tweet.decode("utf-8").strip()
         if not tweet: continue
         yield tweet
@@ -533,10 +542,12 @@ if __name__ == "__main__":
                 matching_rules = ", ".join(
                     r["tag"] for r in data["matching_rules"])
 
-                user_info = await get_user(client, author_id)
-                username = "@{}".format(user_info[0]["screen_name"])
-                name = user_info[0]["name"]
-                follower_count = user_info[0]["followers_count"]
+                username = ""
+                for user in data["includes"]["users"]:
+                    if not user["id"] == author_id:
+                        continue
+                    username = "@{}".format(user["username"])
+                    break
 
                 sys.stdout.write(
                     "\u001b[38;5;220m{}\u001b[0m (rules: "
