@@ -443,10 +443,10 @@ if __name__ == "__main__":
     TWITTER_ACCESS_TOKEN = os.getenv("TWITTER_ACCESS_TOKEN")
     TWITTER_ACCESS_SECRET = os.getenv("TWITTER_ACCESS_SECRET")
     if not TWITTER_ACCESS_TOKEN:
-        logger.warning("Unable to read TWITTER_ACCESS_TOKEN from environment")
+        logger.error("Unable to read TWITTER_ACCESS_TOKEN from environment")
         TWITTER_ACCESS_TOKEN = ""
     if not TWITTER_ACCESS_SECRET:
-        logger.warning("Unable to read TWITTER_ACCESS_SECRET from environment")
+        logger.error("Unable to read TWITTER_ACCESS_SECRET from environment")
         TWITTER_ACCESS_SECRET = ""
 
     async def cmd_list_rules(args: argparse.Namespace):
