@@ -1,4 +1,4 @@
-#!/usr/bin/env -S python -u
+#!/usr/bin/env -S python3 -u
 #-*- fill-column: 79 -*-
 """Fowlstream - Stream tweets based on filter rules.
 
@@ -14,7 +14,7 @@
 * Environment Variables
   - ``FOWLSTREAM_LOG_FORMAT`` - If you want a different log format
   - ``TWITTER_ACCESS_TOKEN`` - API Key from app page
-  - ``TWITTER_SECRET_KEY`` - API Secret Key from app page
+  - ``TWITTER_SECRET_TOKEN`` - API Secret Key from app page
 
 * Usage
   ./fowlstream.py set-rule doggos "puppy has:images"
