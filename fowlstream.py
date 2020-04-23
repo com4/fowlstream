@@ -609,7 +609,7 @@ if __name__ == "__main__":
             "\u001b[38;5;3m<\u001b[0m     Fowlstream - {}\n".format(
                 __description__))
         sys.stderr.write(
-            "\u001b[38;5;33m/-\\\u001b[0m      Version: {}\n\n".format(
+            "\u001b[38;5;33m/#\\\u001b[0m      Version: {}\n\n".format(
                 __version__))
 
         logger.debug("TWITTER_ACCESS_TOKEN: xxxxx{}".format(
