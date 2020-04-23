@@ -521,7 +521,6 @@ if __name__ == "__main__":
 
 
     async def cmd_watch(args: argparse.Namespace):
-        logger.setLevel(logging.INFO)
         try:
             client = await create_client(
                 TWITTER_ACCESS_TOKEN, TWITTER_ACCESS_SECRET)
