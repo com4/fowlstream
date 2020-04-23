@@ -340,7 +340,12 @@ async def delete_filter_rule(client: aiohttp.ClientSession, id_: int) -> bool:
 
 
 async def create_client(access_token: str, secret_token: str) -> aiohttp.ClientSession:
-    """Get an authenticated http client ready to make Twitter API requests."""
+    """Get an authenticated http client ready to make Twitter API requests.
+
+    Args:
+        access_token: Your app's access token from developer.twitter.com
+        secret_token: Your app's secret token from developer.twitter.com
+    """
     client = aiohttp.ClientSession()
     bearer_token = await _oauth_get_bearer_token(
         client, access_token, secret_token)
@@ -353,21 +358,35 @@ async def create_client(access_token: str, secret_token: str) -> aiohttp.ClientS
 
 
 async def connect_stream(client: aiohttp.ClientSession):
-    async with client.get(STREAM_URL) as response:
-        async for tweet in response.content:
-            tweet = tweet.decode("utf-8").strip()
-            if not tweet: continue
-            yield tweet
+
+    # Disable the timeout for streaming
+    timeout = aiohttp.ClientTimeout(total=None)
+    async with client.get(STREAM_URL, timeout=timeout) as response:
+        logger.debug("GET {} -> {} {}".format(
+            STREAM_URL, response.status, response.reason))
+
+        if response.status == 200:
+            async for tweet in response.content:
+                tweet = tweet.decode("utf-8").strip()
+                if not tweet: continue
+                yield tweet
 
 
 async def stream_tweets(access_token: str, secret_token: str):
-    client = await create_client(access_token, secret_token)
-    async for tweet in connect_stream(client):
-        yield tweet
+    """Utility method that performs the setup to stream filtered tweets.
 
-    # TODO: Signal cleanup -- CTRL+c leaves the client open.
-    logger.info("Closing client...")
-    await client.close()
+    Args:
+        access_token: Your app's access token from developer.twitter.com
+        secret_token: Your app's secret token from developer.twitter.com
+    """
+    client = await create_client(access_token, secret_token)
+    try:
+        async for tweet in connect_stream(client):
+            yield tweet
+    except:
+        # TODO: Signal cleanup -- CTRL+c leaves the client open.
+        logger.info("Closing client...")
+        await client.close()
 
 
 if __name__ == "__main__":
