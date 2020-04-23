@@ -1,6 +1,6 @@
 #!/usr/bin/env -S python -u
 #-*- fill-column: 79 -*-
-"""Fowlhose - Stream tweets based on filter rules.
+"""Fowlstream - Stream tweets based on filter rules.
 
 * Setup:
 ** Dependencies
@@ -12,15 +12,15 @@
    - Enable Filtered Stream API: https://developer.twitter.com/en/account/labs
 
 * Environment Variables
-  - ``FOWLHOSE_LOG_FORMAT`` - If you want a different log format
+  - ``FOWLSTREAM_LOG_FORMAT`` - If you want a different log format
   - ``TWITTER_ACCESS_TOKEN`` - API Key from app page
   - ``TWITTER_SECRET_KEY`` - API Secret Key from app page
 
 * Usage
-  ./fowlhose.py set-rule doggos "puppy has:images"
-  ./fowlhose.py set-rule kitties "kittie has:images"
-  ./fowlhose.py list-rules
-  ./fowlhose.py stream > rainy_day_pics.json
+  ./fowlstream.py set-rule doggos "puppy has:images"
+  ./fowlstream.py set-rule kitties "kittie has:images"
+  ./fowlstream.py list-rules
+  ./fowlstream.py stream > rainy_day_pics.json
 """
 import asyncio
 from base64 import b64encode
@@ -69,11 +69,11 @@ class ColorizedFormatter(logging.Formatter):
         return super().format(record)
 
 LOG_FORMAT = os.getenv(
-    "FOWLHOSE_LOG_FORMAT",
+    "FOWLSTREAM_LOG_FORMAT",
     "%(levelname)s | %(asctime)s | %(name)s[%(process)s] | %(msg)s")
 handler = logging.StreamHandler(sys.stderr)
 handler.setFormatter(ColorizedFormatter(LOG_FORMAT))
-logger = logging.getLogger("fowlhose")
+logger = logging.getLogger("fowlstream")
 logger.addHandler(handler)
 
 try:
@@ -607,7 +607,7 @@ if __name__ == "__main__":
             "\u001b[38;5;33m _   \u001b[38;5;8m/\u001b[0m\n")
         sys.stderr.write(
             "\u001b[38;5;33m(\u001b[38;5;12m@\u001b[38;5;33m)"
-            "\u001b[38;5;3m<\u001b[0m     Fowlhose - {}\n".format(
+            "\u001b[38;5;3m<\u001b[0m     Fowlstream - {}\n".format(
                 __description__))
         sys.stderr.write(
             "\u001b[38;5;33m/-\\\u001b[0m      Version: {}\n\n".format(
