@@ -1,13 +1,42 @@
-* Kafka Postgres Sink
-This repository is an example on how to set up Postgres-to-Postgres data
-transfer using Kafka.
-** Prerequisites
-- Docker (https://www.docker.com/products/docker-desktop)
-- Twitter API (https://developer.twitter.com)
-- Filtered Stream API (https://developer.twitter.com/en/account/labs)
-- Python 3.8
-  #+BEGIN_SRC bash
-  # Used to follow the Tweet stream (fowlhose.py)
-  pip install 'aiohttp[speedups]'
-  pip install confluent-kafka
-  #+END_SRC
+* Fowlstream
+A command line utility for streaming tweets using rules. Based on Twitter's
+Filter Stream API.
+** Installing
+Fowlstream was written for Python 3.8. Other versions may work but no
+guarantees.
+#+BEGIN_SRC bash
+pip install 'aiohttp[speedups]'
+#+END_SRC
+*** Credentials
+You'll need a Twitter Developer account.
+- Sign up for Twitter if you don't already have an account:
+  https://twitter.com/
+- Apply to be a Twitter developer: https://developer.twitter.com/
+- Once approved create an app: https://developer.twitter.com/en/apps (You'll
+  use the Consumer API Keys, not the "Access token & access token secret")
+- Enable the Filter Stream API in Labs and associate your app:
+  https://developer.twitter.com/en/account/labs
+** Usage
+#+BEGIN_SRC bash
+export TWITTER_ACCESS_TOKEN=<token>
+export TWITTER_ACCESS_SECRET=<secret>
+
+./fowlstream.py list-rules  # should return nothing
+./fowlstream set-rule dogs "(dog OR puppy) has:image -is:retweet -is:quote"
+./fowlstream.py list-rules  # should see your new rule
+#+END_SRC
+
+To watch the stream:
+#+BEGIN_SRC bash
+./fowlstream watch
+#+END_SRC
+
+Or if you'd like to save the data later for processing in some other way
+#+BEGIN_SRC bash
+./fowlstream.py stream >> rainy_day_pictures.json
+#+END_SRC
+
+Be sure to check out the built-in documentation
+#+BEGIN_SRC bash
+./fowlstream --help
+#+END_SRC
