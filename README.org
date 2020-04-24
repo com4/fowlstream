@@ -22,13 +22,13 @@ export TWITTER_ACCESS_TOKEN=<token>
 export TWITTER_ACCESS_SECRET=<secret>
 
 ./fowlstream.py list-rules  # should return nothing
-./fowlstream set-rule dogs "(dog OR puppy) has:image -is:retweet -is:quote"
+./fowlstream.py set-rule dogs "(dog OR puppy) has:image -is:retweet -is:quote"
 ./fowlstream.py list-rules  # should see your new rule
 #+END_SRC
 
 To watch the stream:
 #+BEGIN_SRC bash
-./fowlstream watch
+./fowlstream.py watch
 #+END_SRC
 
 Or if you'd like to save the data later for processing in some other way
@@ -38,5 +38,5 @@ Or if you'd like to save the data later for processing in some other way
 
 Be sure to check out the built-in documentation
 #+BEGIN_SRC bash
-./fowlstream --help
+./fowlstream.py --help
 #+END_SRC
