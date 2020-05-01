@@ -366,7 +366,7 @@ async def delete_filter_rules(client: aiohttp.ClientSession, ids: List[int]) -> 
         }
     }
     data = await _http_post(client, RULES_URL, json=payload)
-    return data["meta"]["summary"]["not_deleted"] == 0\
+    return data["meta"]["summary"]["not_deleted"] == 0
 
 
 async def delete_filter_rule(client: aiohttp.ClientSession, id_: int) -> bool:
@@ -491,9 +491,9 @@ if __name__ == "__main__":
             await client.close()
 
         if r:
-            logger.info("Successfully added rule")
+            sys.stdout.write("Successfully added rule")
         else:
-            logger.error("Unable to add rule")
+            sys.stderr.write("Unable to add rule")
 
     async def cmd_reset_rules(args: argparse.Namespace):
         try:
@@ -504,9 +504,9 @@ if __name__ == "__main__":
             await client.close()
 
         if r:
-            logger.info("Successfully reset rules")
+            sys.stdout.write("Successfully reset rules")
         else:
-            logger.error("One or more rules were not removed during reset")
+            sys.stderr.write("One or more rules were not removed during reset")
 
 
     async def cmd_delete_rule(args: argparse.Namespace):
@@ -518,9 +518,9 @@ if __name__ == "__main__":
             await client.close()
 
         if r:
-            logger.info("Successfully removed rule {}".format(args.id))
+            sys.stdout.write("Successfully removed rule {}".format(args.id))
         else:
-            logger.error("Unable to remove rule {}".format(args.id))
+            sys.stderr.write("Unable to remove rule {}".format(args.id))
 
 
     async def cmd_stream(args: argparse.Namespace):
