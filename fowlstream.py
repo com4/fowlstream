@@ -227,14 +227,14 @@ def pretty_print_tweet(tweet: dict, stream: IO = sys.stdout):
         tweet: Deserialized tweet payload
         stream: Output stream to write to. *Default: sys.stdout*
     """
-    timestamp = data["data"]["created_at"]
-    msg_parts = textwrap.wrap(html.unescape(data["data"]["text"]))
-    author_id = data["data"]["author_id"]
+    timestamp = tweet["data"]["created_at"]
+    msg_parts = textwrap.wrap(html.unescape(tweet["data"]["text"]))
+    author_id = tweet["data"]["author_id"]
     matching_rules = ", ".join(
-        r["tag"] for r in data["matching_rules"])
+        r["tag"] for r in tweet["matching_rules"])
 
     username = ""
-    for user in data["includes"]["users"]:
+    for user in tweet["includes"]["users"]:
         if not user["id"] == author_id:
             continue
         username = "@{}".format(user["username"])
