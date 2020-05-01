@@ -221,6 +221,33 @@ async def _oauth_get_bearer_token(
             bearer_token = body["access_token"]
     return bearer_token
 
+def pretty_print_tweet(tweet: dict, stream: IO = sys.stdout):
+    """Pretty print a tweet data.
+
+        tweet: Deserialized tweet payload
+        stream: Output stream to write to. *Default: sys.stdout*
+    """
+    timestamp = data["data"]["created_at"]
+    msg_parts = textwrap.wrap(html.unescape(data["data"]["text"]))
+    author_id = data["data"]["author_id"]
+    matching_rules = ", ".join(
+        r["tag"] for r in data["matching_rules"])
+
+    username = ""
+    for user in data["includes"]["users"]:
+        if not user["id"] == author_id:
+            continue
+        username = "@{}".format(user["username"])
+        break
+
+    stream.write(
+        "\u001b[38;5;220m{}\u001b[0m (rules: "
+        "\u001b[38;5;109m{}\u001b[0m)\n".format(
+            username, matching_rules))
+    for line in msg_parts:
+        stream.write("  {}\n".format((line)))
+    stream.write("\n")
+
 
 def _log_http_errors(response: aiohttp.ClientResponse):
     if response.status == 429:
@@ -535,28 +562,7 @@ if __name__ == "__main__":
                 TWITTER_ACCESS_TOKEN, TWITTER_ACCESS_SECRET)
             async for tweet in connect_stream(client):
                 data = json.loads(tweet)
-
-                timestamp = data["data"]["created_at"]
-                msg_parts = textwrap.wrap(html.unescape(data["data"]["text"]))
-                author_id = data["data"]["author_id"]
-                matching_rules = ", ".join(
-                    r["tag"] for r in data["matching_rules"])
-
-                username = ""
-                for user in data["includes"]["users"]:
-                    if not user["id"] == author_id:
-                        continue
-                    username = "@{}".format(user["username"])
-                    break
-
-                sys.stdout.write(
-                    "\u001b[38;5;220m{}\u001b[0m (rules: "
-                    "\u001b[38;5;109m{}\u001b[0m)\n".format(
-                        username, matching_rules))
-                for line in msg_parts:
-                    sys.stdout.write("  {}\n".format((line)))
-                sys.stdout.write("\n")
-
+                pretty_print_tweet(data)
         finally:
             await client.close()
 
