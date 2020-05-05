@@ -611,8 +611,8 @@ if __name__ == "__main__":
     log_level = 40  # Error
     if args.v:
         log_level = log_level - (len(args.v) * 10)
-        if log_level < 0:
-            log_level = 0
+        if log_level < 10:
+            log_level = 10
     logger.setLevel(log_level)
 
     if args.command:
