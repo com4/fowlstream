@@ -31,6 +31,7 @@ import logging
 import os
 import sys
 import textwrap
+import time
 from typing import Any, Dict, IO, List, Optional
 from urllib.parse import quote as urlquote, urlencode
 
@@ -254,6 +255,15 @@ def _log_http_errors(response: aiohttp.ClientResponse):
     if response.status == 429:
         logger.error("Client is being rate-limited")
 
+    elif int(response.headers.get("x-rate-limit-remaining", 1)) <= 0:
+        # The stream endpoint includes rate limit headers to check
+        rl = int(response.headers.get("x-rate-limit-remaining", 1))
+        reset_time = response.headers.get("x-rate-limit-remaining")
+        if reset_time is not None:
+            reset_in = int(reset_time) - int(time.time())
+        else:
+            reset_in = "?"
+        logger.error("Client is being rate-limited (remaining: {}; reset in {}s)")
 
 async def _http_get(client: aiohttp.ClientSession, url: str) -> Dict:
     """Wrapper for client.get with error logging."""
