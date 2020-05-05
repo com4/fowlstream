@@ -213,9 +213,10 @@ async def _oauth_get_bearer_token(
     }
     body = {"grant_type": "client_credentials"}
 
+    logger.debug("POST {}".format(AUTH_URL))
     async with client.post(AUTH_URL, headers=headers, data=body) as response:
-        logger.debug("POST {} -> {} {}".format(
-            AUTH_URL, response.status, response.reason))
+        logger.debug("-> {} {} ({})".format(
+            response.status, response.reason, response.headers))
         if response.status == 200:
             body = await response.json()
             bearer_token = body["access_token"]
@@ -254,13 +255,12 @@ def _log_http_errors(response: aiohttp.ClientResponse):
         logger.error("Client is being rate-limited")
 
 
-async def _http_get(
-        client: aiohttp.ClientSession,
-        url: str) -> Dict:
+async def _http_get(client: aiohttp.ClientSession, url: str) -> Dict:
     """Wrapper for client.get with error logging."""
+    logger.debug("GET {}".format(url))
     async with client.get(url) as response:
-        logger.debug("GET {} -> {} {}".format(
-            url, response.status, response.reason))
+        logger.debug("-> {} {} {}".format(
+            url, response.status, response.reason, response.headers))
         _log_http_errors(response)
 
         data = await response.json()
@@ -273,24 +273,24 @@ async def _http_post(
         url: str,
         json=None) -> dict:
     """Wrapper for client.post with error logging."""
+    logger.debug("POST {}".format(url))
     async with client.post(url, json=json) as response:
-        logger.debug("POST {} -> {} {}".format(
-            RULES_URL, response.status, response.reason))
+        logger.debug("-> {} {} {}".format(
+            response.status, response.reason, response.headers))
         _log_http_errors(response)
         data = await response.json()
         logger.debug("{}".format(data))
     return data
 
 
-async def _http_stream_content(
-        client: aiohttp.ClientSession,
-        url: str):
+async def _http_stream_content(client: aiohttp.ClientSession, url: str):
     """Wrapper for client.get subtable for streaming the response body."""
     # Disable the timeout for streaming
     timeout = aiohttp.ClientTimeout(total=None)
+    logger.debug("GET {}".format(url))
     async with client.get(url, timeout=timeout) as response:
-        logger.debug("GET {} -> {} {}".format(
-            url, response.status, response.reason))
+        logger.debug("-> {} {} {}".format(
+            response.status, response.reason, response.headers))
         _log_http_errors(response)
 
         if response.status < 300:
